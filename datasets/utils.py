@@ -4,6 +4,7 @@ from datasets.cifar import CIFAR10, CIFAR100
 from datasets.mnist import MNIST
 import datasets.svhn_loader as svhn
 import datasets.gaussian_generator as gsn
+import torch
 
 def build_dataset(dataset, mode="train", size=28, channels=3, 
                     mean=(0.492, 0.482, 0.446), std=(0.247, 0.244, 0.262)):
@@ -130,4 +131,13 @@ def build_dataset(dataset, mode="train", size=28, channels=3,
     return data
 
 
-
+def get_ood_dataloaders(OOD_data_list, input_size, input_channels, mean, std, test_bs=200, prefetch_threads=4):
+    ood_loader_dict = dict()
+    for data_name in OOD_data_list:
+        # load OOD test dataset
+        ood_data = build_dataset(data_name, mode="test", size=input_size, channels=input_channels,
+                                    mean=mean, std=std)
+        ood_loader = torch.utils.data.DataLoader(ood_data, batch_size=test_bs, shuffle=True,
+                                                num_workers=prefetch_threads, pin_memory=True)
+        ood_loader_dict[data_name] = ood_loader
+    return ood_loader_dict
