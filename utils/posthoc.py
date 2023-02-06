@@ -8,9 +8,22 @@ import torch.optim as optim
 from utils.loss import _ECELoss
 
 def temperature_scale(logits, temperature):
-    """
-    Perform temperature scaling on logits
-    """
+    '''
+    This function takes logits and performs temperature scaling on logits.
+
+    Parameters
+    ----------
+    logits : array of float
+        The raw output of the model before softmax score function.
+    temperature : float
+        The scaling to be imposed on the raw output, i.e. logits.
+
+    Returns
+    -------
+    scaled_logits : array of float
+        The scaled logits output of the model.
+
+    '''
     # Expand temperature to match the size of logits
     temperature = temperature.unsqueeze(0).expand(logits.size(0), logits.size(1))
     return logits / temperature
@@ -18,11 +31,24 @@ def temperature_scale(logits, temperature):
 
 # This function probably should live outside of this class, but whatever
 def get_optimal_temperature(model, valid_loader, device):
-    """
-    Tune the tempearature of the model (using the validation set).
-    We're going to set it to optimize NLL.
-    valid_loader (DataLoader): validation set loader
-    """
+    '''
+    This function tunes the tempearature of the model using the validation dataset
+    and minimizing negative log likelihood loss (NLL) as optimization goal.
+    
+    Parameters
+    ----------
+    valid_loader : torch.utils.data.DataLoader
+        Data loader of the validation dataset.
+
+    temperature : float
+        The scaling to be imposed on the raw output, i.e. logits.
+
+    Returns
+    -------
+    optimal_t : float
+        The optimal temperature scale.
+
+    '''
     nll_criterion = nn.CrossEntropyLoss().to(device)
     ece_criterion = _ECELoss().to(device)
     temperature = nn.Parameter(torch.ones(1, device=device) * 1.5)
@@ -62,7 +88,32 @@ def get_optimal_temperature(model, valid_loader, device):
 
     return temperature.item()
 
-def odin(inputs, outputs, model, temper, noiseMagnitude1, device):
+def odin(inputs, outputs, model, temper, noiseMagnitude1, device): #TODO
+    '''
+    This function calculates the post-hoc odin scores for OOD detection given the input data 
+    and raw output of the model.
+
+    Parameters
+    ----------
+    inputs : array of float
+        The raw output of the model before softmax score function.
+    outputs : float
+        The scaling to be imposed on the raw output, i.e. logits.
+    model : nn.Module
+        The neural network model. 
+    temper : float 
+        The temperature scale imposed on logits for odin scores calculation.
+    noiseMagnitude1 : float
+        Magnitude of small perturbations added to images.
+    device : str
+        Device on which to perform odin scores calculation.
+
+    Returns
+    -------
+    odin_score : array of float
+        odin scores for OOD detection
+
+    '''
     # Calculating the perturbation we need to add, that is,
     # the sign of gradient of cross entropy loss w.r.t. input
     criterion = nn.CrossEntropyLoss()
@@ -98,31 +149,3 @@ def odin(inputs, outputs, model, temper, noiseMagnitude1, device):
     nnOutputs = np.exp(nnOutputs) / np.sum(np.exp(nnOutputs), axis=1, keepdims=True)
 
     return nnOutputs
-
-def gradnorm(net, loader, ood_num_examples, device, in_dist=False, T=1.0, test_bs=200):
-    _score = []
-
-    logsoftmax = torch.nn.LogSoftmax(dim=-1).to(device)
-    for batch_idx, examples in enumerate(loader):
-        data, target = examples[0], examples[1]
-        if batch_idx >= ood_num_examples // test_bs and in_dist is False:
-            break
-        data = data.to(device)
-        net.zero_grad()
-        output = net(data)
-        num_classes = output.shape[-1]
-        targets = torch.ones((data.shape[0], num_classes)).to(device)
-        output = output / T
-        loss = torch.mean(torch.sum(-targets * logsoftmax(output), dim=-1))
-
-        loss.backward()
-        layer_grad = net.fc.weight.grad.data
-
-        layer_grad_norm = torch.sum(torch.abs(layer_grad)).cpu().numpy()
-        all_score = -layer_grad_norm
-        _score.append(all_score)
-
-    if in_dist:
-        return np.array(_score).copy()
-    else:
-        return np.array(_score)[:ood_num_examples].copy()

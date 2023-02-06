@@ -42,29 +42,48 @@ class LogitNormLoss(nn.Module):
 
 
 class _ECELoss(nn.Module):
-    """
-    Calculates the Expected Calibration Error of a model.
-    (This isn't necessary for temperature scaling, just a cool metric).
-    The input to this loss is the logits of a model, NOT the softmax scores.
-    This divides the confidence outputs into equally-sized interval bins.
-    In each bin, we compute the confidence gap:
-    bin_gap = | avg_confidence_in_bin - accuracy_in_bin |
-    We then return a weighted average of the gaps, based on the number
-    of samples in each bin
-    See: Naeini, Mahdi Pakdaman, Gregory F. Cooper, and Milos Hauskrecht.
-    "Obtaining Well Calibrated Probabilities Using Bayesian Binning." AAAI.
-    2015.
-    """
+
     def __init__(self, n_bins=15):
-        """
-        n_bins (int): number of confidence interval bins
-        """
+        '''
+        This method initiates a _ECELoss object.
+
+        Parameters
+        ----------
+        n_bins : int
+            number of confidence interval bins
+
+        '''
         super(_ECELoss, self).__init__()
         bin_boundaries = torch.linspace(0, 1, n_bins + 1)
         self.bin_lowers = bin_boundaries[:-1]
         self.bin_uppers = bin_boundaries[1:]
 
     def forward(self, logits, labels, t=1.0):
+        '''
+        This forward function calculates the Expected Calibration Error (ECE) of a model. This 
+        divides the confidence scores into equally-sized interval bins.
+        
+        In each bin, we compute the confidence gap:
+        bin_gap = | avg_confidence_in_bin - accuracy_in_bin |
+        We then return a weighted average of the gaps, based on the number of samples in each bin.
+        See: Naeini, Mahdi Pakdaman, Gregory F. Cooper, and Milos Hauskrecht. "Obtaining Well Calibrated Probabilities Using Bayesian Binning." AAAI.
+        2015.
+
+        Parameters
+        ----------
+        logits : array of float
+            The raw output of the model before softmax score function.
+        labels : array of int
+            The ground truth, i.e. true labels of the input dataset.
+        t : float, optional
+            The temperature scale for confidence scores calculation. The default is 1.0, 
+      
+        Returns
+        -------
+        ece : 
+            The Expected Calibration Error (ECE) of the model calculated from the logits.
+
+        '''
         softmaxes = F.softmax(logits/t, dim=1)
         confidences, predictions = torch.max(softmaxes, 1)
         accuracies = predictions.eq(labels)

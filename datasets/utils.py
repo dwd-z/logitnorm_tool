@@ -6,9 +6,35 @@ import datasets.svhn_loader as svhn
 import datasets.gaussian_generator as gsn
 import torch
 
-def build_dataset(dataset, mode="train", size=28, channels=3, 
+def build_dataset(dataset, mode="train", size=32, channels=3, 
                     mean=(0.492, 0.482, 0.446), std=(0.247, 0.244, 0.262)):
+    '''
+    This function builds a specified dataset and defines preprocessing steps. The dataset is 
+    supposed to be fed into a data loader.
 
+    Parameters
+    ----------
+    dataset : str
+        The name of the dataset. Can be chosen from 'cifar10', 'cifar100', 'Textures', 'SVHN',
+        'Places365', 'LSUN-C', 'LSUN-R', 'GTSRB', 'MNIST', 'Gaussian'.
+    mode : str, optional
+        The purpose of use of the dataset. Can be chosen from 'train' and 'test'. The default 
+        is "train".
+    size : int, optional
+        The size of input of the model. The default is 32.
+    channels : int, optional
+        The channels of input of the model. The default is 3. 
+    mean : tuple of float, optional
+        Mean value for normalization of input images. The default is (0.492, 0.482, 0.446).
+    std : tuple of float, optional
+        Standard deviation for normalization of input images. The default is (0.247, 0.244, 0.262).
+
+    Returns
+    -------
+    data : torch.utils.data.Dataset
+        Input image data loaded from a folder or downloaded from the website.
+
+    '''
     mean = mean 
     std = std 
     train_transform = None
@@ -95,10 +121,6 @@ def build_dataset(dataset, mode="train", size=28, channels=3,
         data = dset.ImageFolder(root="./data/ood_test/LSUN/",
                                     transform=test_transform)
 
-    elif dataset == "iSUN":
-        data = dset.ImageFolder(root="./data/ood_test/iSUN/",
-                                    transform=test_transform)
-
     elif dataset == "GTSRB":
         if mode == "train":
             data = dset.ImageFolder(root="./data/GTSRB-Training_fixed/GTSRB/Training/",
@@ -131,9 +153,36 @@ def build_dataset(dataset, mode="train", size=28, channels=3,
     return data
 
 
-def get_ood_dataloaders(OOD_data_list, input_size, input_channels, mean, std, test_bs=200, prefetch_threads=4):
+def get_ood_dataloaders(ood_data_list, input_size, input_channels, mean, std, test_bs=200, prefetch_threads=4):
+    '''
+    This function returns an array of OOD data loaders given the name of the datasets.
+
+    Parameters
+    ----------
+    ood_data_list : str
+        An array of name of the OOD datasets. Can be chosen from 'cifar10', 'cifar100', 'Textures', 'SVHN',
+        'Places365', 'LSUN-C', 'LSUN-R', 'GTSRB', 'MNIST', 'Gaussian'.
+    input_size : int
+        The size of input of the model.
+    input_channels : int
+        The channels of input of the model.
+    mean : tuple of float
+        Mean value for normalization of input images.
+    std : tuple of float
+        Standard deviation for normalization of input images.
+    test_bs : int, optional
+        The batch size of input to perform the test. The default is 200. 
+    prefetch_threads : int, optional
+        Number of threads used for input image preprocessing. The default is 4.
+    
+    Returns
+    -------
+    data : torch.utils.data.Dataset
+        Input image data loaded from a folder or downloaded from the website.
+
+    '''
     ood_loader_dict = dict()
-    for data_name in OOD_data_list:
+    for data_name in ood_data_list:
         # load OOD test dataset
         ood_data = build_dataset(data_name, mode="test", size=input_size, channels=input_channels,
                                     mean=mean, std=std)
