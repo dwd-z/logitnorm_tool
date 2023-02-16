@@ -37,8 +37,6 @@ def build_dataset(dataset, mode="train", size=32, channels=3,
     '''
     mean = mean 
     std = std 
-    train_transform = None
-    test_transform = None
     if type(size) is not tuple:
         size = (size, size)
     if channels == 3:
@@ -98,7 +96,6 @@ def build_dataset(dataset, mode="train", size=32, channels=3,
                              download=True)
 
     elif dataset == "Places365":
-        transforms = None
         if channels == 3:
             transforms = trn.Compose([trn.Resize(size), trn.CenterCrop(size),
                                                        trn.ToTensor(), trn.Normalize(mean, std)])
@@ -109,18 +106,21 @@ def build_dataset(dataset, mode="train", size=32, channels=3,
                                 transform=transforms)
 
     elif dataset == "LSUN-C":
-        transforms = None
         if channels == 3:
             transforms = trn.Compose([trn.CenterCrop(size), trn.ToTensor(), trn.Normalize(mean, std)])
         else:
             transforms = trn.Compose([trn.CenterCrop(size), trn.Grayscale(1), trn.ToTensor(), trn.Normalize(mean, std)])
-        data = dset.ImageFolder(root="./data/ood_test/LSUN/",
+        data = dset.ImageFolder(root="./data/ood_test/LSUN_C/",
                                     transform=transforms)
 
     elif dataset == "LSUN-R":
-        data = dset.ImageFolder(root="./data/ood_test/LSUN/",
+        data = dset.ImageFolder(root="./data/ood_test/LSUN_R/",
                                     transform=test_transform)
 
+    elif dataset == "iSUN":
+        data = dset.ImageFolder(root="./data/ood_test/iSUN/",
+                                    transform=test_transform)
+                                    
     elif dataset == "GTSRB":
         if mode == "train":
             data = dset.ImageFolder(root="./data/GTSRB-Training_fixed/GTSRB/Training/",

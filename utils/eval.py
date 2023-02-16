@@ -9,7 +9,7 @@ from utils.loss import _ECELoss
 from utils.posthoc import odin, get_optimal_temperature
 
 
-def get_id_scores(net, test_loader, device, T=1.0, score_function='MSP'):
+def get_confidence_scores(net, test_loader, device, T=1.0, score_function='MSP'):
     '''
     This function calculates the confidence scores for each prediction in the ID test dataset.
 
@@ -38,7 +38,6 @@ def get_id_scores(net, test_loader, device, T=1.0, score_function='MSP'):
         prediction.
 
     '''
-    _score = []
     _right_score = []
     _wrong_score = []
 
@@ -69,7 +68,6 @@ def get_id_scores(net, test_loader, device, T=1.0, score_function='MSP'):
 
                 layer_grad_norm = torch.sum(torch.abs(layer_grad)).cpu().numpy()
                 all_score = -layer_grad_norm
-                _score.append(all_score)
 
             else: 
                 output = net(data)
@@ -77,15 +75,11 @@ def get_id_scores(net, test_loader, device, T=1.0, score_function='MSP'):
                 
                 if score_function == 'energy':
                     all_score = -to_np(T * torch.logsumexp(output / T, dim=1))
-                    _score.append(all_score)
 
                 elif score_function == 'Odin':
-                    odin_score = odin(data, output, net, T, noiseMagnitude1=0, device=device)
                     all_score = -np.max(to_np(F.softmax(output/T, dim=1)), axis=1)
-                    _score.append(-np.max(odin_score, 1))
                 else:
                     all_score = -np.max(to_np(F.softmax(output/T, dim=1)), axis=1)
-                    _score.append(all_score)
 
             preds = np.argmax(smax, axis=1)
             targets = target.numpy().squeeze()
@@ -95,7 +89,7 @@ def get_id_scores(net, test_loader, device, T=1.0, score_function='MSP'):
             _right_score.append(all_score[right_indices])
             _wrong_score.append(all_score[wrong_indices])
 
-        return concat(_score).copy(), concat(_right_score).copy(), concat(_wrong_score).copy()
+        return concat(_right_score).copy(), concat(_wrong_score).copy()
   
 
 def get_ood_scores(net, test_loader, device, T=1.0, score_function='MSP', ood_num_examples=2000, test_bs=200):
@@ -437,6 +431,7 @@ def get_error_rate(right_score, wrong_score, to_string=True):
     -------
     error_rate : float
         The error rate of the model's prediction in percentage.
+        
     '''
     num_right = len(right_score)
     num_wrong = len(wrong_score)
@@ -448,7 +443,7 @@ def get_error_rate(right_score, wrong_score, to_string=True):
 
     return error_rate
 
-def get_id_measures(net, test_loader, device, temp='optimal', score_function='MSP',
+def get_id_measures(net, test_loader, device, temp='optimal', init_temp=1.5, score_function='MSP',
                     recall_level=0.95, to_string=True, method_name=''):
     '''
     This function calculates the performance measures obtained from an ID test dataset.
@@ -495,10 +490,10 @@ def get_id_measures(net, test_loader, device, temp='optimal', score_function='MS
     '''
     if temp == 'optimal':
         # optimize the post-hoc temperature scale with the ID test dataset
-        temp = get_optimal_temperature(net, test_loader, device)
+        temp = get_optimal_temperature(net, test_loader, device, init=init_temp)
 
     # /////////////// Detection Prelims ///////////////
-    in_score, right_score, wrong_score = get_id_scores(net, test_loader, device, T=temp, score_function=score_function)
+    right_score, wrong_score = get_confidence_scores(net, test_loader, device, T=temp, score_function=score_function)
 
     # /////////////// Error Detection ///////////////
     error_rate = get_error_rate(right_score, wrong_score, to_string=to_string)
@@ -512,7 +507,7 @@ def get_id_measures(net, test_loader, device, temp='optimal', score_function='MS
     return error_rate, ece_error, auroc, aupr, fpr
 
 
-def get_ood_measures(net, test_loader, ood_loader_dict, device, temp='optimal', score_function='MSP',
+def get_ood_measures(net, test_loader, ood_loader_dict, device, temp='optimal', init_temp=1.5, score_function='MSP',
                      recall_level=0.95, ood_num_examples=2000, test_bs=200, num_to_avg=10, to_string=True, 
                      method_name=''):
     '''
@@ -568,16 +563,16 @@ def get_ood_measures(net, test_loader, ood_loader_dict, device, temp='optimal', 
     
     if temp == 'optimal':
         # optimize the post-hoc temperature scale with the ID test dataset
-        temp = get_optimal_temperature(net, test_loader, device)
+        temp = get_optimal_temperature(net, test_loader, device, init=init_temp)
 
     # calculate the confidence scores of each ID data prediction
-    in_score, right_score, wrong_score = get_id_scores(net, test_loader, device, T=temp, score_function=score_function)
+    in_score = get_ood_scores(net, test_loader, device, T=temp, score_function=score_function)
                                           
     for (data_name, ood_loader) in ood_loader_dict.items():
 
         if temp == 'optimal':
             # optimize the post-hoc temperature scale T with the OOD test dataset
-            temp = get_optimal_temperature(net, ood_loader, device)
+            temp = get_optimal_temperature(net, ood_loader, device, init=init_temp)
         
         if to_string:
             print('\n\n{} Detection'.format(data_name))
@@ -615,7 +610,7 @@ def get_ood_measures(net, test_loader, ood_loader_dict, device, temp='optimal', 
     
     return auroc_list, aupr_list, fpr_list
 
-def get_all_measures(net, test_loader, ood_loader_dict, device, temp='optimal', score_function='MSP', 
+def get_all_measures(net, test_loader, ood_loader_dict, device, temp='optimal', init_temp=1.5, score_function='MSP', 
                      recall_level=0.95, ood_num_examples=2000, test_bs=200, to_string=True, method_name=''):
     '''
     This function calculates the performance measures obtained from an ID test dataset.
@@ -675,11 +670,11 @@ def get_all_measures(net, test_loader, ood_loader_dict, device, temp='optimal', 
         positive rate (FPR) at a certain recall.
 
     '''
-    error_rate, ece_error, auroc, aupr, fpr = get_id_measures(net, test_loader, device, temp=temp, 
+    error_rate, ece_error, auroc, aupr, fpr = get_id_measures(net, test_loader, device, temp=temp, init_temp=init_temp,
                                                               score_function=score_function, recall_level=recall_level, 
                                                               to_string=to_string, method_name=method_name)
 
-    auroc_list, aupr_list, fpr_list = get_ood_measures(net, test_loader, ood_loader_dict, device, temp=temp, 
+    auroc_list, aupr_list, fpr_list = get_ood_measures(net, test_loader, ood_loader_dict, device, temp=temp, init_temp=init_temp,
                                                        score_function=score_function, recall_level=recall_level, 
                                                        ood_num_examples=ood_num_examples, test_bs=test_bs, 
                                                        to_string=to_string, method_name=method_name)

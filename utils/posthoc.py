@@ -30,7 +30,7 @@ def temperature_scale(logits, temperature):
 
 
 # This function probably should live outside of this class, but whatever
-def get_optimal_temperature(model, valid_loader, device):
+def get_optimal_temperature(model, valid_loader, device, init=1.5):
     '''
     This function tunes the tempearature of the model using the validation dataset
     and minimizing negative log likelihood loss (NLL) as optimization goal.
@@ -51,7 +51,7 @@ def get_optimal_temperature(model, valid_loader, device):
     '''
     nll_criterion = nn.CrossEntropyLoss().to(device)
     ece_criterion = _ECELoss().to(device)
-    temperature = nn.Parameter(torch.ones(1, device=device) * 1.5)
+    temperature = nn.Parameter(torch.ones(1, device=device) * init)
     # First: collect all the logits and labels for the validation set
     logits_list = []
     labels_list = []

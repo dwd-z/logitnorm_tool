@@ -26,7 +26,7 @@ class LogitNormLoss(nn.Module):
         Parameters
         ----------
         x : 2-D array of float or int
-            The output logits - raw, unnormalized scores for each class - of the neural network.  
+            The raw, unnormalized output logits of the neural network for each class.  
         target : array of int
             An array of true labels of the training dataset.
         
