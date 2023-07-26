@@ -130,8 +130,8 @@ def get_ood_scores(net, test_loader, device, T=1.0, score_function='MSP', ood_nu
     with torch.no_grad():
         
         for batch_idx, examples in enumerate(test_loader):
-            data, target = examples[0], examples[1]
-            if batch_idx >= ood_num_examples // test_bs:
+            data, _ = examples[0], examples[1]
+            if (ood_num_examples is not None) and (batch_idx >= ood_num_examples // test_bs):
                 break
 
             data = data.to(device)
@@ -167,7 +167,6 @@ def get_ood_scores(net, test_loader, device, T=1.0, score_function='MSP', ood_nu
                 else:
                     all_score = -np.max(to_np(F.softmax(output / T, dim=1)), axis=1)
                     _score.append(all_score)
-
 
     return concat(_score)[:ood_num_examples].copy()
 
@@ -611,7 +610,8 @@ def get_ood_measures(net, test_loader, ood_loader_dict, device, temp='optimal', 
     return auroc_list, aupr_list, fpr_list
 
 def get_all_measures(net, test_loader, ood_loader_dict, device, temp='optimal', init_temp=1.5, score_function='MSP', 
-                     recall_level=0.95, ood_num_examples=2000, test_bs=200, to_string=True, method_name=''):
+                     recall_level=0.95, ood_num_examples=2000, test_bs=200, num_to_avg=10, to_string=True, 
+                     method_name=''):
     '''
     This function calculates the performance measures obtained from an ID test dataset.
 
@@ -676,7 +676,7 @@ def get_all_measures(net, test_loader, ood_loader_dict, device, temp='optimal', 
 
     auroc_list, aupr_list, fpr_list = get_ood_measures(net, test_loader, ood_loader_dict, device, temp=temp, init_temp=init_temp,
                                                        score_function=score_function, recall_level=recall_level, 
-                                                       ood_num_examples=ood_num_examples, test_bs=test_bs, 
+                                                       ood_num_examples=ood_num_examples, test_bs=test_bs, num_to_avg=num_to_avg,
                                                        to_string=to_string, method_name=method_name)
     
     return error_rate, ece_error, auroc, aupr, fpr, auroc_list, aupr_list, fpr_list

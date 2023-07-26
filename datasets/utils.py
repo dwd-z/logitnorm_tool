@@ -95,7 +95,7 @@ def build_dataset(dataset, mode="train", size=32, channels=3,
                              transform=test_transform,
                              download=True)
 
-    elif dataset == "Places365":
+    elif dataset == "Places365": # TODO
         if channels == 3:
             transforms = trn.Compose([trn.Resize(size), trn.CenterCrop(size),
                                                        trn.ToTensor(), trn.Normalize(mean, std)])
@@ -117,7 +117,7 @@ def build_dataset(dataset, mode="train", size=32, channels=3,
         data = dset.ImageFolder(root="./data/ood_test/LSUN_R/",
                                     transform=test_transform)
 
-    elif dataset == "iSUN":
+    elif dataset == "iSUN": #TODO
         data = dset.ImageFolder(root="./data/ood_test/iSUN/",
                                     transform=test_transform)
                                     
@@ -153,7 +153,7 @@ def build_dataset(dataset, mode="train", size=32, channels=3,
     return data
 
 
-def get_ood_dataloaders(ood_data_list, input_size, input_channels, mean, std, test_bs=200, prefetch_threads=4):
+def get_ood_dataloaders(ood_data_list, input_size, input_channels, mean, std, test_bs=200, prefetch_threads=4, seed=1):
     '''
     This function returns an array of OOD data loaders given the name of the datasets.
 
@@ -181,6 +181,9 @@ def get_ood_dataloaders(ood_data_list, input_size, input_channels, mean, std, te
         Input image data loaded from a folder or downloaded from the website.
 
     '''
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+
     ood_loader_dict = dict()
     for data_name in ood_data_list:
         # load OOD test dataset

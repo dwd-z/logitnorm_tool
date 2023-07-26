@@ -76,7 +76,7 @@ class SingleModel:
     '''
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self, net, gpu, seed, loss_function, learning_rate, momentum, weight_decay, logitnorm_temp=1.0):
+    def __init__(self, net, device, loss_function, learning_rate, momentum, weight_decay, logitnorm_temp=1.0):
         '''
         This method initiates a SingleModel object.
 
@@ -105,7 +105,7 @@ class SingleModel:
         None.
     
         '''
-        self.gpu = gpu
+
         self.logitnorm_temp = logitnorm_temp
         self.net = net
         self.iterations = 0
@@ -116,11 +116,6 @@ class SingleModel:
         self.scheduler = torch.optim.lr_scheduler.MultiStepLR(
             self.optimizer_model, [80, 140], gamma=0.1)
 
-        if gpu is not None:
-            device = torch.device('cuda:{}'.format(int(gpu)))
-            torch.cuda.manual_seed(seed)
-        else:
-            device = torch.device('cpu')
         self.device = device
 
         if loss_function == "normal":
